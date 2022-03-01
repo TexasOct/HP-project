@@ -13,7 +13,6 @@
 #define SS_PIN 15
 #define RST_PIN 2
 #define BUTTON 0
-int temp = 0;
 
 //Club
 const char *ssid = "SCU_Makers";
@@ -309,6 +308,9 @@ void setup()
         Serial.println("Failed to start LittleFS");
     }
     LittleFS.format();
+
+    pinMode(0 , INPUT_PULLUP);
+
 }
 
 void loop()
@@ -319,6 +321,17 @@ void loop()
     rtc.get( &sec, &min, &hour, &day, &month, &year );// get time from RTC
 
     u8g2Print_day( hour, min, sec );// OLED print
+
+    if ( digitalRead(BUTTON) == LOW )
+    {
+        uid = LittleFS.open( time_file , "r" );
+        while ( uid.available() )
+        {
+            Serial.write( uid.read() );
+        }
+        Serial.print("\n");
+        uid.close();
+    }
 
     // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
     if ( ! rfid.PICC_IsNewCardPresent())
