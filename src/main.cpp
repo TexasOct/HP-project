@@ -115,7 +115,7 @@ void u8g2Print_day(int hour, int min, int sec)
     int_to_Str( min , minStr );
     int_to_Str( sec , secStr );
 
-    u8g2.setFont(u8g2_font_crox3hb_tf);
+    u8g2.setFont( u8g2_font_4x6_tf );
     u8g2.firstPage();
     do
     {
@@ -229,7 +229,7 @@ void write_data( int hour , int min , int sec )
     uid.println();
     uid.close();
 
-    u8g2.setFont(u8g2_font_6x12_me);
+    u8g2.setFont(u8g2_font_4x6_tf );
     u8g2.firstPage();
     do
     {
