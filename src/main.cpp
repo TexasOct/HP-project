@@ -114,7 +114,7 @@ void u8g2Print_day(int hour, int min, int sec)
     int_to_Str( min , minStr );
     int_to_Str( sec , secStr );
 
-    u8g2.setFont( u8g2_font_4x6_tf );
+    u8g2.setFont( u8g2_font_crox3hb_tf );
     u8g2.firstPage();
     do
     {
@@ -243,11 +243,11 @@ void list_file()
     if( !uid )
     {
         Serial.println("Can't read the file!");
-        u8g2.setFont(u8g2_font_6x12_me);
+        u8g2.setFont( u8g2_font_4x6_tr );
         u8g2.firstPage();
         do
         {
-            u8g2.drawStr(0, 30, "Can't read the file!");
+            u8g2.drawStr(0 , 10 , "Can't read the file!");
         }while (u8g2.nextPage());
         delay(2000);
         return ;
@@ -324,13 +324,7 @@ void loop()
 
     if ( digitalRead(BUTTON) == LOW )
     {
-        uid = LittleFS.open( time_file , "r" );
-        while ( uid.available() )
-        {
-            Serial.write( uid.read() );
-        }
-        Serial.print("\n");
-        uid.close();
+        list_file();
     }
 
     // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
