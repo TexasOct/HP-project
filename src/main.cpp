@@ -267,6 +267,7 @@ void list_file()
 
 void setup()
 {
+    int count = 0;
     Serial.begin(9600);
     SPI.begin(); // Init SPI bus
     rfid.PCD_Init(); // Init MFRC520
@@ -280,17 +281,27 @@ void setup()
 
     /*RTC & NTP*/
     WiFi.begin(ssid, passwd);
-    while (WiFi.status() != WL_CONNECTED)
+    while ( WiFi.status() != WL_CONNECTED && count <= 30 )
     {
         delay(500);
         Serial.print(".");
+        count++;
     }
-    Serial.println("\nWIFI Start");
+    if ( count <= 30  )
+    {
+        Serial.println("\nWIFI Start");
+    }else if (count > 30)
+    {
+        Serial.print("\nWIFI isn't connect");
+    }
     delay(1000);
     Serial.println("Init RTC...");
     rtc.begin();
-    tc.begin();
-    tc.update();
+    if ( count <= 30 )
+    {
+        tc.begin();
+        tc.update();
+    }
     rtc.set(int(tc.getSeconds()),
             int(tc.getMinutes()),
             int(tc.getHours()),
