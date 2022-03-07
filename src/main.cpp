@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <ESP8266WebServer.h>
 #include <WiFiUdp.h>
 #include <SPI.h>
 #include <NTPClient.h>
@@ -8,22 +10,31 @@
 #include <MFRC522.h>
 #include <U8g2lib.h>
 #include <LittleFS.h>
-
 #define N 10
 #define SS_PIN 15
 #define RST_PIN 2
 #define BUTTON 0
 
 //Club
-const char *ssid = "SCU_Makers";
-const char *passwd = "iloveSCU";
+const char *ssid1 = "SCU_Makers";
+const char *passwd1 = "iloveSCU";
 //Room
-/*const char *ssid = "Texas_Wifi";
-const char *passwd = "96587431tex";*/
+const char *ssid2 = "Texas_Wifi";
+const char *passwd2 = "96587431tex";
 //home
-/*const char *ssid = "AEHOME";
-const char *passwd = "20196666";*/
+const char *ssid3 = "AEHOME";
+const char *passwd3 = "20196666";
 
+unsigned long id[8]={0x4933058F,
+                     0xF3888202,
+                     0x731A0D03,
+                     0xA35C3102,
+                     0xA3B5F20C,
+                     0x8350D90A,
+                     0x531CFA0A,
+                     0x33206D0C};
+
+std::vector<unsigned long> idcontiner (id , id +4);
 //----------------------------------------Unit_Set-------------------------------------------------
 
 /*OLED*/
@@ -31,6 +42,8 @@ U8G2_SSD1306_64X48_ER_1_HW_I2C u8g2( U8G2_R0, U8X8_PIN_NONE );
 
 /*Wifi*/
 WiFiUDP ntpUDP;
+ESP8266WiFiMulti wiFiMulti;
+ESP8266WebServer server(80);
 
 /*RTC*/
 DS1307 rtc;
@@ -38,7 +51,7 @@ NTPClient tc(ntpUDP, "ntp1.aliyun.com", 60 * 60 * 8, 30 * 60 * 1000);
 
 /*FS*/
 File uid;
-String time_file = "/dir/time.txt";
+String time_file = "/index.html";
 
 /*RC522*/
 MFRC522 rfid(SS_PIN, RST_PIN);
@@ -46,47 +59,6 @@ MFRC522::MIFARE_Key key;
 byte nuidPICC[4];
 
 //---------------------------------------Function---------------------------------------------------
-
-/*void SerialTest( int hour, int min, int sec, int day )
-{
-
-    Serial.print("\nTime: ");
-
-    if (hour <= 9)
-    {
-        Serial.print("0");
-        Serial.print(hour, DEC);
-    }
-    else
-    {
-        Serial.print(hour, DEC);
-    }
-
-    Serial.print(":");
-
-    if (min <= 9)
-    {
-        Serial.print("0");
-        Serial.print(min, DEC);
-    }
-    else
-    {
-        Serial.print(min, DEC);
-    }
-
-    Serial.print(":");
-
-    if (sec <= 9)
-    {
-        Serial.print("0");
-        Serial.println(sec, DEC);
-    }
-    else
-    {
-        Serial.println(sec, DEC);
-    }
-    //delay( 500 );
-}*/
 
 void int_to_Str(int num, char *Str)
 {//Trans the int to str that u8g2 could to strDraw
@@ -175,7 +147,8 @@ void printHex(byte *buffer, byte bufferSize)
     }
 }
 
-void printDec(byte *buffer, byte bufferSize) {
+void printDec(byte *buffer, byte bufferSize)
+{
     for (byte i = 0; i < bufferSize; i++) {
         Serial.print(buffer[i] < 0x10 ? " 0" : " ");
         Serial.print(buffer[i], DEC);
@@ -194,10 +167,15 @@ unsigned long getID()
 
 void write_data( int hour , int min , int sec )
 {
-    if (rfid.uid.uidByte[0] != nuidPICC[0] ||
+
+    unsigned long UID = getID();
+    std::vector<unsigned long>::iterator it;
+
+    it = std::find( idcontiner.begin() , idcontiner.end() , UID) ;
+    if ((rfid.uid.uidByte[0] != nuidPICC[0] ||
         rfid.uid.uidByte[1] != nuidPICC[1] ||
         rfid.uid.uidByte[2] != nuidPICC[2] ||
-        rfid.uid.uidByte[3] != nuidPICC[3] )
+        rfid.uid.uidByte[3] != nuidPICC[3]) &&  *it == UID )
     {
         Serial.println(F("A new card has been detected."));
 
@@ -213,27 +191,33 @@ void write_data( int hour , int min , int sec )
         Serial.print(F("In dec: "));
         printDec(rfid.uid.uidByte, rfid.uid.size);
         Serial.println();
+        uid = LittleFS.open(time_file , "a" );
+        uid.print("UID:");
+        uid.print( UID , HEX );
+        uidtime_datas( hour , min , sec );
+        uid.println("</br>");
+        uid.close();
+
+        u8g2.setFont(u8g2_font_4x6_tf );
+        u8g2.firstPage();
+        do
+        {
+            u8g2.drawStr(0 , 25 , "Card had been ");
+            u8g2.drawStr( 20 , 30 , " read") ;
+        }while (u8g2.nextPage());
     }
     else
     {
-        Serial.println(F("Card read previously."));
+        Serial.println(F("Card read previously,or the can't be read"));
+        u8g2.setFont(u8g2_font_4x6_tf );
+        u8g2.firstPage();
+        do
+        {
+            u8g2.drawStr(16 , 20 , "Card can't be");
+            u8g2.drawStr( 16 , 35 , " read ");
+        }while (u8g2.nextPage());
         return;
     }
-
-    unsigned long UID = getID();
-    uid = LittleFS.open(time_file , "a" );
-    uid.print("UID:");
-    uid.print( UID , HEX );
-    uidtime_datas( hour , min , sec );
-    uid.println();
-    uid.close();
-
-    u8g2.setFont(u8g2_font_4x6_tf );
-    u8g2.firstPage();
-    do
-    {
-        u8g2.drawStr(0, 30, "Card had been read");
-    }while (u8g2.nextPage());
 }
 
 void list_file()
@@ -260,9 +244,68 @@ void list_file()
         }
         Serial.print("\n");
         uid.close();
+        delay(200);
     }
 }
 
+String getContentType(String filename)
+{
+    if(server.hasArg("download")) return "application/octet-stream";
+    else if(filename.endsWith(".htm")) return "text/html";
+    else if(filename.endsWith(".html")) return "text/html";
+    else if(filename.endsWith(".css")) return "text/css";
+    else if(filename.endsWith(".js")) return "application/javascript";
+    else if(filename.endsWith(".png")) return "image/png";
+    else if(filename.endsWith(".gif")) return "image/gif";
+    else if(filename.endsWith(".jpg")) return "image/jpeg";
+    else if(filename.endsWith(".ico")) return "image/x-icon";
+    else if(filename.endsWith(".xml")) return "text/xml";
+    else if(filename.endsWith(".pdf")) return "application/x-pdf";
+    else if(filename.endsWith(".zip")) return "application/x-zip";
+    else if(filename.endsWith(".gz")) return "application/x-gzip";
+    return "text/plain";
+}
+
+void webPage()
+{
+    Serial.println("webPage");
+    File file = LittleFS.open("/index.html", "r");
+    size_t sent = server.streamFile(file, "text/html");
+    file.close();
+    return;
+}
+
+void handleNotFound()
+{
+    String path = server.uri();
+    Serial.print("load url:");
+    Serial.println(path);
+    String contentType = getContentType(path);
+    String pathWithGz = path + ".gz";
+
+    if(LittleFS.exists(pathWithGz) || LittleFS.exists(path))
+    {
+        if(LittleFS.exists(pathWithGz))
+            path += ".gz";
+        File file = LittleFS.open(path, "r");
+        size_t sent = server.streamFile(file, contentType);
+        file.close();
+        return;
+    }
+
+    String message = "File Not Found\n\n";
+    message += "URI: ";
+    message += server.uri();
+    message += "\nMethod: ";
+    message += ( server.method() == HTTP_GET ) ? "GET" : "POST";
+    message += "\nArguments: ";
+    message += server.args();
+    message += "\n";
+    for ( uint8_t i = 0; i < server.args(); i++ ) {
+        message += " " + server.argName ( i ) + ": " + server.arg ( i ) + "\n";
+    }
+    server.send ( 404, "text/plain", message );
+}
 //----------------------------------------Main_Frame-------------------------------------------------
 
 void setup()
@@ -272,6 +315,7 @@ void setup()
     SPI.begin(); // Init SPI bus
     rfid.PCD_Init(); // Init MFRC520
 
+
      /*U8g2 : SSD1306*/
     pinMode(D1, OUTPUT);
     pinMode(D2, OUTPUT);
@@ -279,20 +323,29 @@ void setup()
     digitalWrite(D2, 0);
     u8g2.begin();
 
+
     /*RTC & NTP*/
-    WiFi.begin(ssid, passwd);
-    while ( WiFi.status() != WL_CONNECTED && count <= 30 )
+    wiFiMulti.addAP(ssid1,passwd1);
+    wiFiMulti.addAP(ssid2,passwd2);
+    wiFiMulti.addAP(ssid3,passwd3);
+
+
+    while ( wiFiMulti.run() != WL_CONNECTED && count <= 20 )
     {
         delay(500);
         Serial.print(".");
         count++;
     }
-    if ( count <= 30  )
+    if ( count <= 20  )
     {
-        Serial.println("\nWIFI Start");
-    }else if (count > 30)
+        Serial.print("\nWIFI Start,the ip is: ");
+        Serial.println( WiFi.localIP() );
+        Serial.print( "The SSID is :" );
+        Serial.println(WiFi.SSID() );
+    }
+    else if (count > 20)
     {
-        Serial.print("\nWIFI isn't connect");
+        Serial.println("\nWIFI isn't connect");
     }
     delay(1000);
     Serial.println("Init RTC...");
@@ -310,24 +363,38 @@ void setup()
             0);// set time from NTPClient
     rtc.start(); // start RTC
 
+
     /*LittleFS*/
     if( LittleFS.begin() )
     {
+        LittleFS.format();
         Serial.println("LittleFS Start");
-    }else
+        uid = LittleFS.open(time_file , "a");
+        uid.println("Strat write:</br>");
+        uid.close();
+    }
+    else
     {
         Serial.println("Failed to start LittleFS");
     }
-    LittleFS.format();
 
+
+    /*Buttom to file*/
     pinMode(0 , INPUT_PULLUP);
 
+    /*WEB Server*/
+    server.on("/" , webPage);
+    server.onNotFound([]() {server.send( 404 , "text/plain" , "File not found" );});
+    server.begin();
+    Serial.println("HTTP Server Start");
 }
 
 void loop()
 {
     uint8_t sec, min, hour, day, month;
     uint16_t year;
+
+    server.handleClient();
 
     rtc.get( &sec, &min, &hour, &day, &month, &year );// get time from RTC
 
@@ -336,6 +403,8 @@ void loop()
     if ( digitalRead(BUTTON) == LOW )
     {
         list_file();
+        Serial.println("File Send");
+        Serial.println(WiFi.localIP());
     }
 
     // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
@@ -348,8 +417,6 @@ void loop()
 
     write_data( hour , min , sec );
 
-    list_file();
-
     // Halt PICC
     rfid.PICC_HaltA();
 
@@ -358,3 +425,44 @@ void loop()
 
     delay(2000);
 }
+
+/*void SerialTest( int hour, int min, int sec, int day )
+{
+
+    Serial.print("\nTime: ");
+
+    if (hour <= 9)
+    {
+        Serial.print("0");
+        Serial.print(hour, DEC);
+    }
+    else
+    {
+        Serial.print(hour, DEC);
+    }
+
+    Serial.print(":");
+
+    if (min <= 9)
+    {
+        Serial.print("0");
+        Serial.print(min, DEC);
+    }
+    else
+    {
+        Serial.print(min, DEC);
+    }
+
+    Serial.print(":");
+
+    if (sec <= 9)
+    {
+        Serial.print("0");
+        Serial.println(sec, DEC);
+    }
+    else
+    {
+        Serial.println(sec, DEC);
+    }
+    //delay( 500 );
+}*/
