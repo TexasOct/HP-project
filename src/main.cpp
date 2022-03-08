@@ -10,6 +10,8 @@
 #include <MFRC522.h>
 #include <U8g2lib.h>
 #include <LittleFS.h>
+//#include <FreeRTOS.h>
+
 #define N 10
 #define SS_PIN 15
 #define RST_PIN 2
@@ -25,16 +27,15 @@ const char *passwd2 = "96587431tex";
 const char *ssid3 = "AEHOME";
 const char *passwd3 = "20196666";
 
-unsigned long id[8]={0x4933058F,
-                     0xF3888202,
-                     0x731A0D03,
-                     0xA35C3102,
-                     0xA3B5F20C,
-                     0x8350D90A,
-                     0x531CFA0A,
-                     0x33206D0C};
 
-std::vector<unsigned long> idcontiner (id , id +4);
+std::vector<unsigned long> id{  0x4933058F,
+                                0xF3888202,
+                                0x731A0D03,
+                                0xA35C3102,
+                                0xA3B5F20C,
+                                0x8350D90A,
+                                0x531CFA0A,
+                                0x33206D0C  };
 //----------------------------------------Unit_Set-------------------------------------------------
 
 /*OLED*/
@@ -90,11 +91,11 @@ void u8g2Print_day(int hour, int min, int sec)
     u8g2.firstPage();
     do
     {
-        u8g2.drawStr(0, 30, hourStr);
-        u8g2.drawStr(18, 30, ":");
-        u8g2.drawStr(23, 30, minStr);
-        u8g2.drawStr(41, 30, ":");
-        u8g2.drawStr(45, 30, secStr);
+        u8g2.drawStr(0, 25, hourStr);
+        u8g2.drawStr(18, 25, ":");
+        u8g2.drawStr(23, 25, minStr);
+        u8g2.drawStr(41, 25, ":");
+        u8g2.drawStr(45, 25, secStr);
 
     }while (u8g2.nextPage());
 
@@ -169,13 +170,12 @@ void write_data( int hour , int min , int sec )
 {
 
     unsigned long UID = getID();
-    std::vector<unsigned long>::iterator it;
+    std::vector<unsigned long>::iterator it = std::find(id.begin(),id.end(),UID);
 
-    it = std::find( idcontiner.begin() , idcontiner.end() , UID) ;
     if ((rfid.uid.uidByte[0] != nuidPICC[0] ||
-        rfid.uid.uidByte[1] != nuidPICC[1] ||
-        rfid.uid.uidByte[2] != nuidPICC[2] ||
-        rfid.uid.uidByte[3] != nuidPICC[3]) &&  *it == UID )
+         rfid.uid.uidByte[1] != nuidPICC[1] ||
+         rfid.uid.uidByte[2] != nuidPICC[2] ||
+         rfid.uid.uidByte[3] != nuidPICC[3]) && it != id.end() )
     {
         Serial.println(F("A new card has been detected."));
 
@@ -192,8 +192,8 @@ void write_data( int hour , int min , int sec )
         printDec(rfid.uid.uidByte, rfid.uid.size);
         Serial.println();
         uid = LittleFS.open(time_file , "a" );
-        uid.print("UID:");
-        uid.print( UID , HEX );
+        uid.print("No:");
+        uid.print( std::distance(id.begin() , it ) + 1 , DEC );
         uidtime_datas( hour , min , sec );
         uid.println("</br>");
         uid.close();
@@ -208,7 +208,7 @@ void write_data( int hour , int min , int sec )
     }
     else
     {
-        Serial.println(F("Card read previously,or the can't be read"));
+        Serial.println(F("Card read previously,or the card can't be read"));
         u8g2.setFont(u8g2_font_4x6_tf );
         u8g2.firstPage();
         do
@@ -220,35 +220,83 @@ void write_data( int hour , int min , int sec )
     }
 }
 
-void list_file()
+void webPage()
 {
-    uid = LittleFS.open(time_file , "r" );
+    Serial.println("webPage");
+    File file = LittleFS.open("/index.html", "r");
+    size_t sent = server.streamFile(file, "text/html");
+    file.close();
+    return;
+}
 
-    if( !uid )
+void WiFi_Start()/*NTP request && WiFi*/
+{
+    int count = 0;
+    wiFiMulti.addAP(ssid1,passwd1);
+    wiFiMulti.addAP(ssid2,passwd2);
+    wiFiMulti.addAP(ssid3,passwd3);
+
+    while ( wiFiMulti.run() != WL_CONNECTED && count <= 20 )
     {
-        Serial.println("Can't read the file!");
-        u8g2.setFont( u8g2_font_4x6_tr );
-        u8g2.firstPage();
-        do
-        {
-            u8g2.drawStr(0 , 10 , "Can't read the file!");
-        }while (u8g2.nextPage());
-        delay(2000);
-        return ;
+        Serial.print(".");
+        delay(500);
+        count++;
+    }
+
+    if ( count <= 20  )
+    {
+        Serial.print("\nWIFI Start,the ip is : ");
+        Serial.println( WiFi.localIP() );
+        Serial.print( "The SSID is : " );
+        Serial.println(WiFi.SSID() );
+    }
+    else if (count > 20)
+    {
+        Serial.println("\nWIFI isn't connect");
+    }
+
+    delay(1000);
+    Serial.println("Init RTC...");
+    rtc.begin();
+    if ( count <= 30 )
+    {
+        tc.begin();
+        tc.update();
+    }
+    rtc.set(int(tc.getSeconds()),
+            int(tc.getMinutes()),
+            int(tc.getHours()),
+            int(tc.getDay()),
+            0,
+            0);// set time from NTPClient
+    rtc.start(); // start RTC
+}
+void u8g2_start()/*U8g2 : SSD1306*/
+{
+    pinMode(D1, OUTPUT);
+    pinMode(D2, OUTPUT);
+    digitalWrite(D1, 0);
+    digitalWrite(D2, 0);
+    u8g2.begin();
+}
+void LittleFS_Start()/*LittleFS*/
+{
+    if( LittleFS.begin() )
+    {
+        LittleFS.format();
+        Serial.println("LittleFS Start");
+        uid = LittleFS.open(time_file , "a");
+        uid.println("Strat write:</br>");
+        uid.close();
     }
     else
     {
-        while ( uid.available() )
-        {
-            Serial.write( uid.read() );
-        }
-        Serial.print("\n");
-        uid.close();
-        delay(200);
+        Serial.println("Failed to start LittleFS");
     }
 }
+/*Test Function*/
 
-String getContentType(String filename)
+/*String getContentType(String filename)
 {
     if(server.hasArg("download")) return "application/octet-stream";
     else if(filename.endsWith(".htm")) return "text/html";
@@ -264,18 +312,9 @@ String getContentType(String filename)
     else if(filename.endsWith(".zip")) return "application/x-zip";
     else if(filename.endsWith(".gz")) return "application/x-gzip";
     return "text/plain";
-}
+}*/
 
-void webPage()
-{
-    Serial.println("webPage");
-    File file = LittleFS.open("/index.html", "r");
-    size_t sent = server.streamFile(file, "text/html");
-    file.close();
-    return;
-}
-
-void handleNotFound()
+/*void handleNotFound()
 {
     String path = server.uri();
     Serial.print("load url:");
@@ -305,126 +344,35 @@ void handleNotFound()
         message += " " + server.argName ( i ) + ": " + server.arg ( i ) + "\n";
     }
     server.send ( 404, "text/plain", message );
-}
-//----------------------------------------Main_Frame-------------------------------------------------
+}*/
 
-void setup()
+/*void list_file()
 {
-    int count = 0;
-    Serial.begin(9600);
-    SPI.begin(); // Init SPI bus
-    rfid.PCD_Init(); // Init MFRC520
+    uid = LittleFS.open(time_file , "r" );
 
-
-     /*U8g2 : SSD1306*/
-    pinMode(D1, OUTPUT);
-    pinMode(D2, OUTPUT);
-    digitalWrite(D1, 0);
-    digitalWrite(D2, 0);
-    u8g2.begin();
-
-
-    /*RTC & NTP*/
-    wiFiMulti.addAP(ssid1,passwd1);
-    wiFiMulti.addAP(ssid2,passwd2);
-    wiFiMulti.addAP(ssid3,passwd3);
-
-
-    while ( wiFiMulti.run() != WL_CONNECTED && count <= 20 )
+    if( !uid )
     {
-        delay(500);
-        Serial.print(".");
-        count++;
-    }
-    if ( count <= 20  )
-    {
-        Serial.print("\nWIFI Start,the ip is: ");
-        Serial.println( WiFi.localIP() );
-        Serial.print( "The SSID is :" );
-        Serial.println(WiFi.SSID() );
-    }
-    else if (count > 20)
-    {
-        Serial.println("\nWIFI isn't connect");
-    }
-    delay(1000);
-    Serial.println("Init RTC...");
-    rtc.begin();
-    if ( count <= 30 )
-    {
-        tc.begin();
-        tc.update();
-    }
-    rtc.set(int(tc.getSeconds()),
-            int(tc.getMinutes()),
-            int(tc.getHours()),
-            int(tc.getDay()),
-            0,
-            0);// set time from NTPClient
-    rtc.start(); // start RTC
-
-
-    /*LittleFS*/
-    if( LittleFS.begin() )
-    {
-        LittleFS.format();
-        Serial.println("LittleFS Start");
-        uid = LittleFS.open(time_file , "a");
-        uid.println("Strat write:</br>");
-        uid.close();
+        Serial.println("Can't read the file!");
+        u8g2.setFont( u8g2_font_4x6_tr );
+        u8g2.firstPage();
+        do
+        {
+            u8g2.drawStr(0 , 10 , "Can't read the file!");
+        }while (u8g2.nextPage());
+        delay(2000);
+        return ;
     }
     else
     {
-        Serial.println("Failed to start LittleFS");
+        while ( uid.available() )
+        {
+            Serial.write( uid.read() );
+        }
+        Serial.print("\n");
+        uid.close();
+        delay(200);
     }
-
-
-    /*Buttom to file*/
-    pinMode(0 , INPUT_PULLUP);
-
-    /*WEB Server*/
-    server.on("/" , webPage);
-    server.onNotFound([]() {server.send( 404 , "text/plain" , "File not found" );});
-    server.begin();
-    Serial.println("HTTP Server Start");
-}
-
-void loop()
-{
-    uint8_t sec, min, hour, day, month;
-    uint16_t year;
-
-    server.handleClient();
-
-    rtc.get( &sec, &min, &hour, &day, &month, &year );// get time from RTC
-
-    u8g2Print_day( hour, min, sec );// OLED print
-
-    if ( digitalRead(BUTTON) == LOW )
-    {
-        list_file();
-        Serial.println("File Send");
-        Serial.println(WiFi.localIP());
-    }
-
-    // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
-    if ( ! rfid.PICC_IsNewCardPresent())
-        return;
-
-    // Verify if the NUID has been readed
-    if ( ! rfid.PICC_ReadCardSerial())
-        return;
-
-    write_data( hour , min , sec );
-
-    // Halt PICC
-    rfid.PICC_HaltA();
-
-    // Stop encryption on PCD
-    rfid.PCD_StopCrypto1();
-
-    delay(2000);
-}
+}*/
 
 /*void SerialTest( int hour, int min, int sec, int day )
 {
@@ -466,3 +414,110 @@ void loop()
     }
     //delay( 500 );
 }*/
+//----------------------------------------Main_Frame-------------------------------------------------
+
+void setup()
+{
+    Serial.begin(9600);
+    SPI.begin(); // Init SPI bus
+    rfid.PCD_Init(); // Init MFRC52
+
+    u8g2_start();
+
+    WiFi_Start();
+
+    LittleFS_Start();
+
+    /*WEB Server*/
+    server.on("/" , webPage);
+    server.onNotFound([]() {server.send( 404 , "text/plain" , "File not found" );});
+    server.begin();
+    Serial.println("HTTP Server Start");
+}
+
+void loop()
+{
+    uint8_t sec, min, hour, day, month;
+    uint16_t year;
+    wiFiMulti.run();
+
+    //Process the web request
+    server.handleClient();
+
+    rtc.get( &sec, &min, &hour, &day, &month, &year );// get time from RTC
+
+    u8g2Print_day( hour, min, sec );// OLED print
+
+    if ( digitalRead(BUTTON) == LOW )
+    {
+        //list_file();  //Use in test version
+        Serial.println("File Send");
+        Serial.println(WiFi.localIP());
+        delay(1000);
+    }
+
+    // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
+    if ( ! rfid.PICC_IsNewCardPresent())
+        return;
+
+    // Verify if the NUID has been readed
+    if ( ! rfid.PICC_ReadCardSerial())
+        return;
+
+    write_data( hour , min , sec );
+
+    // Halt PICC
+    rfid.PICC_HaltA();
+
+    // Stop encryption on PCD
+    rfid.PCD_StopCrypto1();
+
+    delay(2000);
+}
+
+/*Next version for FreeRTOS*/
+/*
+void taskMain( void* taskMain )
+{
+    uint8_t sec, min, hour, day, month;
+    uint16_t year;
+    while(1)
+    {
+        wiFiMulti.run();
+
+        rtc.get( &sec, &min, &hour, &day, &month, &year );// get time from RTC
+
+        // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
+        if ( ! rfid.PICC_IsNewCardPresent())
+            return;
+
+        // Verify if the NUID has been readed
+        if ( ! rfid.PICC_ReadCardSerial())
+            return;
+
+        write_data( hour , min , sec );
+
+        // Halt PICC
+        rfid.PICC_HaltA();
+
+        // Stop encryption on PCD
+        rfid.PCD_StopCrypto1();
+    }
+}
+
+void taskButtom( void* subtask )
+{
+    Serial.begin(9600);
+    pinMode(0 , INPUT_PULLUP);
+    while (1)
+    {
+        if ( digitalRead(BUTTON) == LOW )
+        {
+            //list_file();  //Use in test version
+            Serial.println("File Send");
+            Serial.println(WiFi.localIP());
+            vTaskDelay( 1000 , portTICK_PERIOD_MS );
+        }
+    }
+};
+*/
