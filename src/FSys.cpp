@@ -63,10 +63,10 @@ void uidtime_datas( int hour, int min, int sec )
     }
 }
 
-void FS_write(int hour , int min , int sec , std::vector<unsigned long> id ,  ){
+void FS_write(int hour , int min , int sec , int number ){
     uid = LittleFS.open(time_file , "a" );
     uid.print("No:");
-    uid.print( std::distance(id.begin() , it ) + 1 , DEC );
+    uid.print( number , DEC );
     uidtime_datas( hour , min , sec );
     uid.println("</br>");
     uid.close();

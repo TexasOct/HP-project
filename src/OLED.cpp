@@ -6,7 +6,6 @@
 #include <U8g2lib.h>
 #include <SPI.h>
 #include <hal.h>
-#define N 10
 
 U8G2_SSD1306_64X48_ER_1_HW_I2C u8g2( U8G2_R0, U8X8_PIN_NONE );
 
@@ -21,7 +20,7 @@ void u8g2_start()/*U8g2 : SSD1306*/
 
 void int_to_Str(int num, char *Str)
 {//Trans the int to str that u8g2 could to strDraw
-    char str[N] = {'\0'};
+    char str[NUM] = {'\0'};
     if (num <= 9)
     {
         Str[0] = '0';
@@ -36,9 +35,9 @@ void int_to_Str(int num, char *Str)
 
 void u8g2Print_day(int hour, int min, int sec )
 {
-    char secStr[N] = {'\0'};
-    char minStr[N] = {'\0'};
-    char hourStr[N] = {'\0'};
+    char secStr[NUM] = {'\0'};
+    char minStr[NUM] = {'\0'};
+    char hourStr[NUM] = {'\0'};
 
     int_to_Str( hour , hourStr );
     int_to_Str( min , minStr );

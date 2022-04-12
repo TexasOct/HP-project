@@ -44,14 +44,17 @@ unsigned long getID()
     return hex_num;
 }
 
-void detect_card(){
+int detect_card(){
     // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
-    if ( ! rfid.PICC_IsNewCardPresent())
-        return;
+    if ( ! rfid.PICC_IsNewCardPresent()){
+        return 1;
+    }
 
     // Verify if the NUID has been readed
-    if ( ! rfid.PICC_ReadCardSerial())
-        return;
+    if ( ! rfid.PICC_ReadCardSerial()) {
+        return 1;
+    }
+    return 0;
 }
 
 void write_data( int hour , int min , int sec , std::vector<unsigned long> &id )
@@ -59,6 +62,7 @@ void write_data( int hour , int min , int sec , std::vector<unsigned long> &id )
 
     unsigned long UID = getID();
     auto it = std::find(id.begin(),id.end(),UID);
+    int number =  std::distance(id.begin() , it ) + 1;
 
     if ((rfid.uid.uidByte[0] != nuidPICC[0] ||
          rfid.uid.uidByte[1] != nuidPICC[1] ||
@@ -79,7 +83,9 @@ void write_data( int hour , int min , int sec , std::vector<unsigned long> &id )
         Serial.print(F("In dec: "));
         printDec(rfid.uid.uidByte, rfid.uid.size);
         Serial.println();
-        FS_write();
+
+
+        FS_write(hour , min , sec , number);
         u8g2_callback_display_get();
     }
     else

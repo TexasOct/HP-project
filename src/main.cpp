@@ -7,6 +7,7 @@
 #include "RC522.h"
 #include "FSys.h"
 #include "WiFi-NTP.h"
+#include "WebServer.h"
 #include "hal.h"
 //#include <FreeRTOS.h>
 
@@ -28,14 +29,13 @@ void setup()
 
     RFID_start();
 
-
-
     u8g2_start();
 
     WiFi_Start();
 
     LittleFS_Start();
 
+    webStart();
 }
 
 void loop()
@@ -56,7 +56,10 @@ void loop()
 
     u8g2Print_day( hour, min, sec );// OLED print
 
-    detect_card();
+    if (detect_card() == 1)
+    {
+        return;
+    }
 
     write_data( hour , min , sec , id);
 

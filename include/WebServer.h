@@ -5,8 +5,10 @@
 #ifndef MAIN_CPP_WEBSERVER_H
 #define MAIN_CPP_WEBSERVER_H
 
+void webStart();
+
 void webPage();
 
-void
+void clientHandle();
 
 #endif //MAIN_CPP_WEBSERVER_H

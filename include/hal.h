@@ -5,7 +5,7 @@
 #ifndef MAIN_CPP_HAL_H
 #define MAIN_CPP_HAL_H
 
-#define N 10
+#define NUM 10
 #define SS_PIN 15
 #define RST_PIN 2
 #define BUTTON 0

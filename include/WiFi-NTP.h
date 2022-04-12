@@ -4,6 +4,7 @@
 
 #ifndef MAIN_CPP_WIFI_NTP_H
 #define MAIN_CPP_WIFI_NTP_H
+#include <iostream>
 
 void WiFi_Start();
 

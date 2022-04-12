@@ -11,7 +11,7 @@ void RFID_start();
 
 void write_data(int hour , int min , int sec , std::vector<unsigned long> &id );
 
-void detect_card();
+int detect_card();
 
 void Halt_Detect();
 

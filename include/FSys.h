@@ -9,7 +9,7 @@
 
 void LittleFS_Start();
 
-void FS_write();
+void FS_write(int hour , int min , int sec , int number);
 
 void openHtml( File& file );
 
