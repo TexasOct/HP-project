@@ -1,0 +1,167 @@
+/*Next version for FreeRTOS*/
+/*
+void taskMain( void* taskMain )
+{
+    uint8_t sec, min, hour, day, month;
+    uint16_t year;
+    while(1)
+    {
+        wiFiMulti.run();
+
+        rtc.get( &sec, &min, &hour, &day, &month, &year );// get time from RTC
+
+        // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
+        if ( ! rfid.PICC_IsNewCardPresent())
+            return;
+
+        // Verify if the NUID has been readed
+        if ( ! rfid.PICC_ReadCardSerial())
+            return;
+
+        write_data( hour , min , sec );
+
+        // Halt PICC
+        rfid.PICC_HaltA();
+
+        // Stop encryption on PCD
+        rfid.PCD_StopCrypto1();
+    }
+}
+
+void taskButtom( void* subtask )
+{
+    Serial.begin(9600);
+    pinMode(0 , INPUT_PULLUP);
+    while (1)
+    {
+        if ( digitalRead(BUTTON) == LOW )
+        {
+            //list_file();  //Use in test version
+            Serial.println("File Send");
+            Serial.println(WiFi.localIP());
+            vTaskDelay( 1000 , portTICK_PERIOD_MS );
+        }
+    }
+};
+*/
+
+/*Test Function*/
+
+/*String getContentType(String filename)
+{
+    if(server.hasArg("download")) return "application/octet-stream";
+    else if(filename.endsWith(".htm")) return "text/html";
+    else if(filename.endsWith(".html")) return "text/html";
+    else if(filename.endsWith(".css")) return "text/css";
+    else if(filename.endsWith(".js")) return "application/javascript";
+    else if(filename.endsWith(".png")) return "image/png";
+    else if(filename.endsWith(".gif")) return "image/gif";
+    else if(filename.endsWith(".jpg")) return "image/jpeg";
+    else if(filename.endsWith(".ico")) return "image/x-icon";
+    else if(filename.endsWith(".xml")) return "text/xml";
+    else if(filename.endsWith(".pdf")) return "application/x-pdf";
+    else if(filename.endsWith(".zip")) return "application/x-zip";
+    else if(filename.endsWith(".gz")) return "application/x-gzip";
+    return "text/plain";
+}*/
+
+/*void handleNotFound()
+{
+    String path = server.uri();
+    Serial.print("load url:");
+    Serial.println(path);
+    String contentType = getContentType(path);
+    String pathWithGz = path + ".gz";
+
+    if(LittleFS.exists(pathWithGz) || LittleFS.exists(path))
+    {
+        if(LittleFS.exists(pathWithGz))
+            path += ".gz";
+        File file = LittleFS.open(path, "r");
+        size_t sent = server.streamFile(file, contentType);
+        file.close();
+        return;
+    }
+
+    String message = "File Not Found\n\n";
+    message += "URI: ";
+    message += server.uri();
+    message += "\nMethod: ";
+    message += ( server.method() == HTTP_GET ) ? "GET" : "POST";
+    message += "\nArguments: ";
+    message += server.args();
+    message += "\n";
+    for ( uint8_t i = 0; i < server.args(); i++ ) {
+        message += " " + server.argName ( i ) + ": " + server.arg ( i ) + "\n";
+    }
+    server.send ( 404, "text/plain", message );
+}*/
+
+/*void list_file()
+{
+    uid = LittleFS.open(time_file , "r" );
+
+    if( !uid )
+    {
+        Serial.println("Can't read the file!");
+        u8g2.setFont( u8g2_font_4x6_tr );
+        u8g2.firstPage();
+        do
+        {
+            u8g2.drawStr(0 , 10 , "Can't read the file!");
+        }while (u8g2.nextPage());
+        delay(2000);
+        return ;
+    }
+    else
+    {
+        while ( uid.available() )
+        {
+            Serial.write( uid.read() );
+        }
+        Serial.print("\n");
+        uid.close();
+        delay(200);
+    }
+}*/
+
+/*void SerialTest( int hour, int min, int sec, int day )
+{
+
+    Serial.print("\nTime: ");
+
+    if (hour <= 9)
+    {
+        Serial.print("0");
+        Serial.print(hour, DEC);
+    }
+    else
+    {
+        Serial.print(hour, DEC);
+    }
+
+    Serial.print(":");
+
+    if (min <= 9)
+    {
+        Serial.print("0");
+        Serial.print(min, DEC);
+    }
+    else
+    {
+        Serial.print(min, DEC);
+    }
+
+    Serial.print(":");
+
+    if (sec <= 9)
+    {
+        Serial.print("0");
+        Serial.println(sec, DEC);
+    }
+    else
+    {
+        Serial.println(sec, DEC);
+    }
+    //delay( 500 );
+}*/
